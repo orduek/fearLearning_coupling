@@ -9,10 +9,10 @@ import arviz as az
 
 # %%
 # read file
-df = pd.read_csv('data/scr_amg_hipp_all_PH.csv') # change to relevant file here
-dem = pd.read_csv('data/demographic.csv')
-dem['sub'] = dem['sub_id'].astype(str)
-df = df.merge(dem, on='sub', how='left')
+df = pd.read_csv('data/scr_amg_hipp_all_noShock.csv') # change to relevant file here
+#dem = pd.read_csv('data/demographic.csv')
+#dem['sub'] = dem['sub_id'].astype(str)
+#df = df.merge(dem, on='sub', how='left')
 # %% amygdala-hippocampus coupling pymc model
 # Encode 'sub' as integer indices
 df['sub_idx'] = pd.Categorical(df['sub']).codes

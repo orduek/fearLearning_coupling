@@ -408,4 +408,38 @@ plot_slope_panel_3x2_fixed_xlim(
     figsize=(12, 9),
     dpi=600,
 )
+# %% Compare contrasts of slopes between groups
+
+# Amygdala-vmPFC: combat-exposed without PTSD vs. with PTSD
+diff_vmpfc = slope_vmpfc_VCC - slope_vmpfc_VPTSD
+pd_diff = float((diff_vmpfc < 0).mean())  # VCC more negative than PTSD
+hdi_diff = az.hdi(diff_vmpfc.values.flatten(), hdi_prob=0.89)
+print(f"VCC - VPTSD: mean={float(diff_vmpfc.mean()):.3f}, sd = {float(diff_vmpfc.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
+
+# Amygdala-hippocampus: combat-exposed without PTSD vs. with PTSD
+diff_hipp = slope_hipp_VCC - slope_hipp_VPTSD
+pd_diff = float((diff_hipp < 0).mean())  # VCC more negative than PTSD
+hdi_diff = az.hdi(diff_hipp.values.flatten(), hdi_prob=0.89)
+print(f"VCC - VPTSD: mean={float(diff_hipp.mean()):.3f}, sd = {float(diff_hipp.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
+# %% Contrasting HC vs. PTSD
+diff_hc_ptsd = slope_hipp_HC - slope_hipp_VPTSD
+pd_diff = float((diff_hc_ptsd < 0).mean())  # HC more negative than PTSD
+hdi_diff = az.hdi(diff_hc_ptsd.values.flatten(), hdi_prob=0.89)
+print(f"HC - VPTSD: mean={float(diff_hc_ptsd.mean()):.3f}, sd = {float(diff_hc_ptsd.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
+# %% Contrasting HC vs. VCC
+diff_hc_vcc = slope_hipp_HC - slope_hipp_VCC
+pd_diff = float((diff_hc_vcc < 0).mean())  # HC more negative than VCC
+hdi_diff = az.hdi(diff_hc_vcc.values.flatten(), hdi_prob=0.89)
+print(f"HC - VCC: mean={float(diff_hc_vcc.mean()):.3f}, sd = {float(diff_hc_vcc.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
+
+# %% compare contrasts of slopes between HC and PTSD/VCC for vmpfc
+diff_vmpfc_ptsd = slope_vmpfc_HC - slope_vmpfc_VPTSD
+pd_diff = float((diff_vmpfc_ptsd < 0).mean())  # HC more negative than PTSD
+hdi_diff = az.hdi(diff_vmpfc_ptsd.values.flatten(), hdi_prob=0.89)
+print(f"HC - VPTSD: mean={float(diff_vmpfc_ptsd.mean()):.3f}, sd = {float(diff_vmpfc_ptsd.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
+diff_vmpfc_vcc = slope_vmpfc_HC - slope_vmpfc_VCC
+pd_diff = float((diff_vmpfc_vcc < 0).mean())  # HC more negative than VCC
+hdi_diff = az.hdi(diff_vmpfc_vcc.values.flatten(), hdi_prob=0.89)
+print(f"HC - VCC: mean={float(diff_vmpfc_vcc.mean()):.3f}, sd = {float(diff_vmpfc_vcc.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
+
 # %%
