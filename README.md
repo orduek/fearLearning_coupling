@@ -6,8 +6,7 @@ Analysis scripts for the fear learning coupling paper. We examine how amygdala�
 
 ```
 fearLearning_coupling/
-├── data/                          # Input data (not tracked)
-├── outputs/                       # Generated tables and figures
+
 ├── analysis_script.py             # Main coupling × group PyMC models
 ├── sensitivity_stuff.py           # Sensitivity analysis (alternative dataset)
 ├── scr_Pymc.ipynb                 # SCR-based reinforcement learning models
