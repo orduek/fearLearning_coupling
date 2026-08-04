@@ -12,6 +12,8 @@ import seaborn as sns
 import pymc as pm
 import arviz as az 
 
+# define random seed for reproducibility
+random_seed = 42
 
 def plot_slope_panel_3x2(
     *,
@@ -173,7 +175,12 @@ def plot_slope_panel_3x2_fixed_xlim(
     # Column titles (set after plotting so they aren't overwritten)
     axes[0, 0].set_title(left_title, fontsize=13, pad=14)
     axes[0, 1].set_title(right_title, fontsize=13, pad=14)
-
+    # Replace per-panel "value"/"density" labels with shared axis labels
+    for ax in axes.ravel():
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+    fig.supxlabel("Coupling–PE slope (β)", fontsize=13)
+    fig.supylabel("Posterior density", fontsize=13)
     # Row labels (group names) on the left side of the grid
     for r, g in enumerate(row_order):
         display = row_display_names.get(g, g)
@@ -257,7 +264,7 @@ with pm.Model() as model:
     sigma = pm.HalfNormal('sigma', sigma=1)
     y_obs = pm.Normal('pe', mu=mu, sigma=sigma, observed=pe)
     
-    trace = pm.sample(chains=4, return_inferencedata=True,
+    trace = pm.sample(chains=4, random_seed=random_seed, return_inferencedata=True,
                       idata_kwargs={"log_likelihood": True})
 
 
@@ -295,8 +302,6 @@ fig.suptitle("Posterior distributions of coupling slopes by group", y=1.02)
 fig.tight_layout()
 plt.savefig('amg_hipp_coupling_panel.png', dpi=600)
 plt.show()
-
-
 
 
 # %% [markdown]
@@ -357,10 +362,10 @@ with pm.Model() as model_vmpfc:
     sigma = pm.HalfNormal('sigma', sigma=1)
     y_obs = pm.Normal('pe', mu=mu, sigma=sigma, observed=pe)
     
-    trace_vmpfc = pm.sample(chains=4, return_inferencedata=True,
+    trace_vmpfc = pm.sample(chains=4, random_seed=random_seed, return_inferencedata=True,
                       idata_kwargs={"log_likelihood": True})
 
-# %%
+# %% Summary of amygdala-vmPFC coupling model
 az.summary(trace_vmpfc, var_names=['beta_coupling', 'beta_group_raw', 'beta_interaction_raw'], 
            hdi_prob=0.89)
 # %% grab group specific slopes for coupling
@@ -388,6 +393,34 @@ fig.suptitle("Posterior distributions of coupling slopes by group", y=1.02)
 fig.tight_layout()
 plt.savefig('amg_vmpfc_coupling_panel.png', dpi=600)
 plt.show()
+
+
+#%% 
+# Now to answee R4 we add trialxgroup interaction
+# PE ~ group + trial + groupXtrial + amyg + (1|subject)
+# Question: do groups differ in overall PE level?
+with pm.Model() as model_pe_group:
+    beta_amg     = pm.Normal('beta_amg', 0, 1)
+    beta_trialNo = pm.Normal('beta_trialNo', 0, 1)
+    beta_group_raw = pm.Normal('beta_group_raw', 0, 1, shape=n_groups-1)
+    beta_group = pm.math.concatenate([[0], beta_group_raw])
+    # Group × Trial: does the trial trajectory differ by group?
+    beta_gxt_raw = pm.Normal('beta_gxt_raw', 0, 1, shape=n_groups-1)
+    beta_gxt = pm.math.concatenate([[0], beta_gxt_raw])
+
+
+    mu_a = pm.Normal('mu_a', 0, 1); sigma_a = pm.HalfNormal('sigma_a', 1)
+    z_a = pm.Normal('z_a', 0, 1, shape=n_subs)
+    a = pm.Deterministic('a', mu_a + z_a*sigma_a)
+
+    mu = a[sub_idx] + beta_group[group_idx] + beta_amg*amg + beta_trialNo*trialNo + beta_gxt[group_idx]*trialNo
+
+    sigma = pm.HalfNormal('sigma', 1)
+    pm.Normal('pe', mu=mu, sigma=sigma, observed=pe)
+    trace_pe_traj = pm.sample(chains=4, random_seed=random_seed,
+                               return_inferencedata=True,
+                               idata_kwargs={"log_likelihood": True})
+az.summary(trace_pe_traj, var_names=['beta_group_raw', 'beta_trialNo', 'beta_gxt_raw'], hdi_prob=0.89)
 
 # %% combined A–F style panel (3 rows x 2 columns)
 left_slopes = {"HC": slope_hipp_HC, "VCC": slope_hipp_VCC, "VPTSD": slope_hipp_VPTSD}
@@ -443,3 +476,36 @@ hdi_diff = az.hdi(diff_vmpfc_vcc.values.flatten(), hdi_prob=0.89)
 print(f"HC - VCC: mean={float(diff_vmpfc_vcc.mean()):.3f}, sd = {float(diff_vmpfc_vcc.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
 
 # %%
+
+# %% ROPE-based precision analysis (Kruschke & Liddell, 2018)
+# Answers R2 #1: quantifies estimation precision relative to a region of
+# practical equivalence, as the Bayesian alternative to a power analysis.
+
+def rope_report(samples, name, rope=(-0.03, 0.03)):
+    """samples: xarray posterior (chain, draw) of a slope or contrast."""
+    x = np.asarray(samples).ravel()
+    lo, hi = rope
+    pct_in    = np.mean((x >= lo) & (x <= hi)) * 100
+    pct_below = np.mean(x < lo) * 100
+    pct_above = np.mean(x > hi) * 100
+    hdi = az.hdi(x, hdi_prob=0.89)
+    # decision: does the 89% HDI exclude the ROPE entirely?
+    excludes = (hdi[1] < lo) or (hdi[0] > hi)
+    print(f"{name:22s} mean={x.mean():+.3f}  89%HDI=[{hdi[0]:+.3f},{hdi[1]:+.3f}]  "
+          f"inROPE={pct_in:4.1f}%  belowROPE={pct_below:4.1f}%  aboveROPE={pct_above:4.1f}%  "
+          f"HDI excludes ROPE: {excludes}")
+    return dict(name=name, mean=x.mean(), hdi=hdi, pct_in=pct_in,
+                pct_below=pct_below, pct_above=pct_above, excludes=excludes)
+
+print("=== ROPE [-0.03, 0.03] precision analysis ===")
+print("\n-- amygdala–vmPFC (primary circuit) --")
+rope_report(diff_vmpfc,      "VCC - VPTSD (primary)")   # the headline
+rope_report(slope_vmpfc_VCC, "VCC slope")
+rope_report(slope_vmpfc_VPTSD,"VPTSD slope")
+rope_report(slope_vmpfc_HC,  "HC slope")
+
+print("\n-- amygdala–hippocampus --")
+rope_report(diff_hipp,       "VCC - VPTSD")
+rope_report(slope_hipp_HC,   "HC slope")
+rope_report(slope_hipp_VCC,  "VCC slope")
+rope_report(slope_hipp_VPTSD,"VPTSD slope")
