@@ -204,6 +204,7 @@ def plot_slope_panel_3x2_fixed_xlim(
 # %%
 # read file
 df = pd.read_csv('data/scr_brain_group.csv')
+# only for no shock
 # %% amygdala-hippocampus coupling pymc model
 # Encode 'sub' as integer indices
 df['sub_idx'] = pd.Categorical(df['sub']).codes
@@ -269,8 +270,8 @@ with pm.Model() as model:
 
 
 # %% trace
-az.summary(trace, var_names=['beta_coupling', 'beta_group_raw', 'beta_interaction_raw'], 
-           hdi_prob=0.89)
+sum_hipp = az.summary(trace, var_names=['beta_coupling', 'beta_group_raw', 'beta_interaction_raw'], hdi_prob=0.89)
+print(f'Summary of Amygdala hippocampus coupling model: {sum_hipp}')
 
 # %% grab group specific slopes for coupling
 # group specific slope
@@ -366,8 +367,8 @@ with pm.Model() as model_vmpfc:
                       idata_kwargs={"log_likelihood": True})
 
 # %% Summary of amygdala-vmPFC coupling model
-az.summary(trace_vmpfc, var_names=['beta_coupling', 'beta_group_raw', 'beta_interaction_raw'], 
-           hdi_prob=0.89)
+sum_vmpfc = az.summary(trace_vmpfc, var_names=['beta_coupling', 'beta_group_raw', 'beta_interaction_raw'], hdi_prob=0.89)
+print(f"Summary of Amygdala-vmPFC coupling model: {sum_vmpfc}")
 # %% grab group specific slopes for coupling
 # group specific slope
 
@@ -396,7 +397,7 @@ plt.show()
 
 
 #%% 
-# Now to answee R4 we add trialxgroup interaction
+# Now to answer R4 we add trialxgroup interaction
 # PE ~ group + trial + groupXtrial + amyg + (1|subject)
 # Question: do groups differ in overall PE level?
 with pm.Model() as model_pe_group:
@@ -447,33 +448,33 @@ plot_slope_panel_3x2_fixed_xlim(
 diff_vmpfc = slope_vmpfc_VCC - slope_vmpfc_VPTSD
 pd_diff = float((diff_vmpfc < 0).mean())  # VCC more negative than PTSD
 hdi_diff = az.hdi(diff_vmpfc.values.flatten(), hdi_prob=0.89)
-print(f"VCC - VPTSD: mean={float(diff_vmpfc.mean()):.3f}, sd = {float(diff_vmpfc.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
+print(f"VCC - VPTSD vmpfc: mean={float(diff_vmpfc.mean()):.3f}, sd = {float(diff_vmpfc.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
 
 # Amygdala-hippocampus: combat-exposed without PTSD vs. with PTSD
 diff_hipp = slope_hipp_VCC - slope_hipp_VPTSD
 pd_diff = float((diff_hipp < 0).mean())  # VCC more negative than PTSD
 hdi_diff = az.hdi(diff_hipp.values.flatten(), hdi_prob=0.89)
-print(f"VCC - VPTSD: mean={float(diff_hipp.mean()):.3f}, sd = {float(diff_hipp.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
+print(f"VCC - VPTSD hipp: mean={float(diff_hipp.mean()):.3f}, sd = {float(diff_hipp.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
 # %% Contrasting HC vs. PTSD
 diff_hc_ptsd = slope_hipp_HC - slope_hipp_VPTSD
 pd_diff = float((diff_hc_ptsd < 0).mean())  # HC more negative than PTSD
 hdi_diff = az.hdi(diff_hc_ptsd.values.flatten(), hdi_prob=0.89)
-print(f"HC - VPTSD: mean={float(diff_hc_ptsd.mean()):.3f}, sd = {float(diff_hc_ptsd.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
+print(f"HC - VPTSD hipp: mean={float(diff_hc_ptsd.mean()):.3f}, sd = {float(diff_hc_ptsd.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
 # %% Contrasting HC vs. VCC
 diff_hc_vcc = slope_hipp_HC - slope_hipp_VCC
 pd_diff = float((diff_hc_vcc < 0).mean())  # HC more negative than VCC
 hdi_diff = az.hdi(diff_hc_vcc.values.flatten(), hdi_prob=0.89)
-print(f"HC - VCC: mean={float(diff_hc_vcc.mean()):.3f}, sd = {float(diff_hc_vcc.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
+print(f"HC - VCC hipp: mean={float(diff_hc_vcc.mean()):.3f}, sd = {float(diff_hc_vcc.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
 
 # %% compare contrasts of slopes between HC and PTSD/VCC for vmpfc
 diff_vmpfc_ptsd = slope_vmpfc_HC - slope_vmpfc_VPTSD
 pd_diff = float((diff_vmpfc_ptsd < 0).mean())  # HC more negative than PTSD
 hdi_diff = az.hdi(diff_vmpfc_ptsd.values.flatten(), hdi_prob=0.89)
-print(f"HC - VPTSD: mean={float(diff_vmpfc_ptsd.mean()):.3f}, sd = {float(diff_vmpfc_ptsd.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
+print(f"HC - VPTSD vmpfc: mean={float(diff_vmpfc_ptsd.mean()):.3f}, sd = {float(diff_vmpfc_ptsd.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
 diff_vmpfc_vcc = slope_vmpfc_HC - slope_vmpfc_VCC
 pd_diff = float((diff_vmpfc_vcc < 0).mean())  # HC more negative than VCC
 hdi_diff = az.hdi(diff_vmpfc_vcc.values.flatten(), hdi_prob=0.89)
-print(f"HC - VCC: mean={float(diff_vmpfc_vcc.mean()):.3f}, sd = {float(diff_vmpfc_vcc.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
+print(f"HC - VCC vmpfc: mean={float(diff_vmpfc_vcc.mean()):.3f}, sd = {float(diff_vmpfc_vcc.std()):.3f}, pd={pd_diff*100:.1f}%, 89% HDI={hdi_diff}")
 
 # %%
 
@@ -509,3 +510,6 @@ rope_report(diff_hipp,       "VCC - VPTSD")
 rope_report(slope_hipp_HC,   "HC slope")
 rope_report(slope_hipp_VCC,  "VCC slope")
 rope_report(slope_hipp_VPTSD,"VPTSD slope")
+
+print("\n-- PE trajectory (group × trial) --")
+print(az.summary(trace_pe_traj, var_names=['beta_group_raw', 'beta_trialNo', 'beta_gxt_raw'], hdi_prob=0.89))
